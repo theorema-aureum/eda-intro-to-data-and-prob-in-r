@@ -1,0 +1,268 @@
+---
+title: "Exploring the BRFSS Data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+### Package used for the data analysis:
+
+```{r load-packages, message = FALSE}
+library(tidyverse)
+```
+
+### Dataset used for the analysis:
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+###### The Behavioral Risk Factor Surveillance Systen is an ongoing surveillance system between US states and territories and the CDC to "to measure behavioral risk factors for the non-institutionalized adult population." The data was gathered through the use of monthly landline- and cellphone-based surveys about preventative health practices and risk behaviors of chronic diseases, injuries, and infectious diseases. The available data is from the 2013 results of the survey. 
+
+###### Individuals were classified based on landline or cellphone use, with cellphone users classified as those who use a cellphone for 90% or more of their calls. For landline interviews, interviewers spoke with a random individual of a given household. For cellphone interviews, interviewers spoke with individuals possessing a cellphone residing in a private residence or college housing. There is no direct method to account for non telephone-based interviews. 
+
+###### The system randomly sampled households using disproportionate stratified samples; simple random samples were used in Puerto Rico and Guam. The data was weighted using iterative proportional fitting, providing a way for groups underrepresented in the sample to be accurately represented in the final data set. Due to the sampling methods used and the expanse of the surveillane system, this data is generalizable to the entire United States and subsequent territories. Causality cannot be inferred due to the design structure of this project, i.e., there is no assignment of experiment and control groups.
+
+###### There is a potential of bias in this dataset based on the possibility of underrepresented groups even after weighting, the ability of individuals to recall information specific to the interview, and the possibility of individuals altering their responses due to the knowledge of being interviewed.  
+
+###### Below are three areas for further research from this dataset. 
+
+
+
+* * *
+
+## Part 2: Areas of Research Interest
+
+**Area 1:** Healthcare does not appear to be consistently accessible today based on different factors. How accessible was healthcare in 2013 based on education level? 
+
+**Area 2:** Economic burden may exacerbate preexisting mental health concerns. In 2013, how did individuals with a depressive disorder and of varying employment statuses and sex feel stress due to the costs of rent?
+
+**Area 3:** Tobacco use is known to be hazardous to health. How did tobacco use in 2013 vary based on marital status and weight of male respondents?
+
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+
+**Area 1: Healthcare Access**
+
+###### The majority of individuals interviewed were high school graduates, college graduates, or attended college or technical school but did not graduate. 2,274 individuals did not provide a response. 12.22 % of individuals didn't see a doctor due to cost, and 26.28% of individuals went for longer than one year without a routine checkup. The last percentage is 100% minus the percentage of individuals who went for less than one year without a routine checkup minus the percentage of individuals who did not provide a response. 
+
+```{r}
+brfss2013 %>% 
+  count(educa) %>% 
+  mutate(`Proportion (Percentage)`= round(n / 491775 * 100, 2)) %>%
+  rename(
+    `Education Level` = educa, 
+    Total = n
+  )
+
+brfss2013 %>% 
+  count(medcost) %>% 
+  mutate(`Proportion (Percentage)`= round(n / 491775 * 100, 2)) %>%
+  rename(
+    `Could not see doctor because of cost?` = medcost,
+    Total = n 
+  )
+
+brfss2013 %>% 
+  count(checkup1) %>% 
+  mutate(`Proportion (Percentage)`= round(n / 491775 * 100, 2)) %>%
+  rename(
+    `Length of Time Since Last Routine Checkup` = checkup1,
+    Total = n
+  )
+```
+
+###### Below is a visualization of those who could not afford the cost of a doctor by education level and those who went longer than one year for a routine checkup by education level. 
+
+###### High school graduates without further study and those who attended college or technical school but did not gradauate were the largest groups to say that they couldn't see a doctor due to cost. 
+
+```{r}
+brfss2013 %>%
+  filter(medcost == "Yes") %>%
+  mutate(educa = fct_explicit_na(educa, "No Answer")) %>% 
+  ggplot() + 
+  geom_histogram(aes(x = educa, fill = educa), stat = "count") +
+  labs(
+    title = "Couldn't See a Doctor Due to Cost by Education Level",
+    x = "Education Level",
+    y = "Total",
+    fill = "Education Level"
+  ) +
+  scale_y_continuous(breaks = seq(0, 20000, 1000)) +
+  theme_classic() + 
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  ) 
+```
+
+###### At first glance, high school graduates, those who attended college or technical school but did not gradauate, and college graduates appeared the most frequent to go longer than one year without a routine checkup. This may be explained by a lack of data for adults with less than a high-school education. 
+
+```{r}
+brfss2013 %>%
+  filter(checkup1 != "Within past year") %>%
+  mutate(educa = fct_explicit_na(educa, "No Answer")) %>% 
+  ggplot() + 
+  geom_histogram(aes(x = educa, fill = educa), stat = "count") +
+  facet_wrap(~checkup1) +
+  labs(
+    title = "Length of Time Since Last Routine Checkup",
+    subtitle = "(Greater Than One Year)",
+    x = "Education Level",
+    y = "Total",
+    fill = "Education Level"
+  ) +
+  scale_y_continuous(breaks = seq(0, 50000, 5000)) +
+  theme_classic() + 
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) 
+```
+
+
+
+**Area 2: Mental Health**
+
+###### 95,779 individuals reported being told they have a depressive disorder, and 2,289 did not give an answer. Of those who reported being told they have a depressive disorder, 28,457 identified as male, 67,321 identified as female, and 1 individual did not answer. Most individuals described as being told they have a depressive disorder did not answer; this may be due to Social Context being an optional interview module. NA values will be excluded for clarity.
+
+```{r}
+brfss2013 %>% 
+  count(addepev2) %>%
+  rename(
+    `Ever told you have a depressive disorder?` = addepev2,
+    Total = n
+    )
+
+brfss2013 %>% 
+  count(addepev2, sex) %>%
+  rename(
+    `Ever told you have a depressive disorder?` = addepev2,
+    Sex = sex,
+    Total = n
+    )  
+
+brfss2013 %>% 
+  filter(addepev2 == "Yes") %>%
+  count(scntmony) %>% 
+  rename(
+    `Stress experienced by depressed individuals due to cost of rent?` = scntmony,
+    Total = n
+  )
+```
+
+###### Of those who answered this question, the majority of individuals were reported never feeling stressed over the cost of rent over the last 12 months. 
+
+```{r}
+brfss2013 %>%
+  filter(addepev2 == "Yes" & !is.na(scntmony) & !is.na(sex)) %>%
+  ggplot() + 
+  geom_bar(aes(x = scntmony, fill = sex), stat = "count", position = "dodge") +
+  labs(
+    title = "Frequency of Stress Experienced Due to Cost of Rent by Gender",
+    subtitle = "(Scored as Times over the Last 12 Months)",
+    x = "Stress Level",
+    y = "Total",
+    fill = "Sex"
+  ) +
+  scale_y_continuous(breaks = seq(0, 4000, 400)) +
+  theme_classic() + 
+  theme(plot.subtitle = element_text(hjust = 0.5)) 
+```
+
+
+
+**Area 3: Tobacco Use**
+
+###### A new factor needs to be created to represent single or married due to the number of available categories. For practicality's sake, consider "single" to represent categories other than married. 
+
+```{r}
+brfss2013 <- brfss2013 %>% 
+  mutate(
+    m_status = as.factor(if_else(marital == "Married", "Married", "Single")),
+    weight2 = as.numeric(weight2)
+    ) 
+```
+
+###### We see that most male individuals responded as married while 1,322 did not answer. Let someone be considered a smoker if they answered "every day" or "some days." Most male individuals in general reported not smoking, yet also almost half of male individuals did not answer. 
+
+```{r}
+brfss2013 %>%
+  filter(sex == "Male") %>%
+  count(m_status) %>%
+  rename(
+    `Marital Status` = m_status,
+    Total = n
+  )
+
+brfss2013 %>%
+  filter(sex == "Male") %>%
+  count(m_status, smokday2) %>%
+  mutate(
+    `Proportion (Percentage)` = round(n / 201313 * 100, 2)) %>%
+  rename(
+    `Marital Status` = m_status,
+    `Frequency of days now smoking?` = smokday2,
+    Total = n 
+  )
+```
+
+###### This data is to be used for conceptual purposes only. It is unlikely that the average reported weight in pounds of male individuals in 2013 is 99.88 pounds. This may be explained by the nature of how the data was collected and individual's misconception about weight, lack of a scale, and so forth. Following this logic, data, married males who didn't smoke reported on average the highest weight of 105.26 pounds (standard deviation 44.09 pounds), while single males who smoked daily reported on average the lowest weight of 91.47 pounds (standard deviation 49.02 pounds). Reported weights ranged from 1 to 570 pounds.
+
+```{r}
+brfss2013 %>%
+  filter(sex == "Male") %>%
+  summarize(
+    `Average Weight` = mean(weight2),
+    `Median Weight` = median(weight2),
+    `Minimum Weight` = min(weight2),
+    `Maximum Weight` = max(weight2),
+    `Standard Deviation of Weight` = sd(weight2)
+  )
+
+brfss2013 %>%
+  filter(sex == "Male") %>%
+  group_by(m_status, smokday2) %>%
+  summarize(
+    `Average Weight` = mean(weight2),
+    `Median Weight` = median(weight2),
+    `Minimum Weight` = min(weight2),
+    `Maximum Weight` = max(weight2),
+    `Standard Deviation of Weight` = sd(weight2)
+  ) %>%
+  rename(
+    `Marital Status` = m_status,
+    `Frequency of days now smoking?` = smokday2
+  )
+```
+
+###### Due to the poor quality of weight data and the high prevalence of outliers, filter for reported weight between 0 and 200 pounds in order to clearly view the boxplots based on each smoking response. All categories of smoking and marital status possess a similar spread of weight between the first and third quantile. Those who responded "Not at all" had the highest median weight in both groups, and the largest difference in median weight occured in the "Some days" group. Married male individuals appeared to have a higher median weight. 
+
+```{r}
+brfss2013 %>%
+  mutate(smokday2 = fct_explicit_na(smokday2, "No Answer")) %>%
+  filter(sex == "Male" & !is.na(m_status) & weight2 <= 200) %>%
+  ggplot() +
+  geom_boxplot(aes(x = smokday2, y = weight2, fill = m_status)) +
+  labs(
+    title = "Reported Weight (pounds) by Marital and Smoking Status",
+    x = "Smoking Status",
+    y = "Reported Weight (pounds)", 
+    fill = "Marital Status"
+  ) +
+  scale_y_continuous(breaks = seq(0, 200, 20)) +
+  theme_classic()
+```
